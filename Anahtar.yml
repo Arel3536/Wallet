@@ -1,0 +1,601 @@
+// ed25519 paketi Ed25519 imza algoritmasını uygular. Görmek 
+
+// https://ed25519.cr.yp.to /. 
+
+// 
+
+// Bu işlevler aynı zamanda şurada tanımlanan “Ed25519” işleviyle de uyumludur. 
+
+// RFC8032 . Ancak RFC 8032'nin formülasyonundan farklı olarak bu paketin özel anahtarı 
+
+// temsil, çoklu imzalama yapmak için bir ortak anahtar son eki içerir 
+
+// aynı anahtarla yapılan işlemler daha verimli. Bu paket RFC'yi ifade eder 
+
+// “seed” olarak 8032 özel anahtarı. 
+
+paket ed25519 
+
+içe aktarmak ( 
+
+	"bayt" 
+
+	"kripto" 
+
+	"kripto/dahili/edwards25519" 
+
+	kriptorand "kripto/rand" 
+
+	"kripto/sha512" 
+
+	"kripto/ince" 
+
+	"hatalar" 
+
+	"io" 
+
+	"strconv" 
+
+) 
+
+sabit ( 
+
+	// PublicKeySize, bu pakette kullanıldığı şekliyle genel anahtarların bayt cinsinden boyutudur. 
+
+	Genel Anahtar Boyutu = 32 
+
+	// PrivateKeySize, bu pakette kullanıldığı şekliyle özel anahtarların bayt cinsinden boyutudur. 
+
+	ÖzelAnahtarBoyutu = 64 
+
+	// SignatureSize, bu paket tarafından oluşturulan ve doğrulanan imzaların bayt cinsinden boyutudur. 
+
+	İmza Boyutu = 64 
+
+	// SeedSize, özel anahtar tohumlarının bayt cinsinden boyutudur. Bunlar RFC 8032 tarafından kullanılan özel anahtar gösterimleridir . 
+
+	Tohum Boyutu = 32 
+
+) 
+
+// PublicKey, Ed25519 ortak anahtarlarının türüdür. 
+
+PublicKey []bayt yazın
+
+// PublicKey'de uygulanan yöntemlerin aynı zamanda üzerinde de uygulanması gerekebilir 
+
+// PrivateKey, ikincisi birinciyi yerleştirdiği ve yöntemlerini ortaya çıkaracağı için. 
+
+// Equal pub ve x'in aynı değere sahip olup olmadığını bildirir. 
+
+func (pub PublicKey) Equal(x crypto.PublicKey) bool { 
+
+	xx, tamam := x.(PublicKey) 
+
+	Eğer tamam ise { 
+
+		yanlış döndür
+
+	} 
+
+	return ince.ConstantTimeCompare(pub, xx) == 1 
+
+} 
+
+// PrivateKey, Ed25519 özel anahtarlarının türüdür. [crypto.Signer]'ı uygular. 
+
+Özel Anahtar []bayt yazın
+
+// Public, priv'e karşılık gelen [PublicKey] değerini döndürür. 
+
+func (priv PrivateKey) Public() crypto.PublicKey { 
+
+	publicKey := make([]byte, PublicKeySize) 
+
+	kopyala(publicKey, özel[ 32 :]) 
+
+	PublicKey'i döndür (publicKey) 
+
+} 
+
+// Equal, priv ve x'in aynı değere sahip olup olmadığını bildirir. 
+
+func (priv PrivateKey) Equal(x crypto.PrivateKey) bool { 
+
+	xx, tamam := x.(Özel Anahtar) 
+
+	Eğer tamam ise { 
+
+		yanlış döndür
+
+	} 
+
+	return ince.ConstantTimeCompare(priv, xx) == 1 
+
+} 
+
+// Seed, priv'e karşılık gelen özel anahtar tohumunu döndürür. Bunun için sağlanmıştır 
+
+// RFC 8032 ile birlikte çalışabilirlik . RFC 8032'nin özel anahtarları tohumlara karşılık gelir 
+
+// bu pakette. 
+
+func (priv PrivateKey) Seed() []bayt { 
+
+	return bytes.Clone(priv[:SeedSize]) 
+
+} 
+
+// Sign verilen mesajı priv ile imzalar. Rand göz ardı edilir ve sıfır olabilir. 
+
+// 
+
+// opts.HashFunc(), [crypto.SHA512] ise, önceden karma işlemi uygulanmış Ed25519ph değişkeni kullanılır 
+
+// ve mesajın SHA-512 karma değeri olması bekleniyor, aksi takdirde opts.HashFunc() gerekir 
+
+// [crypto.Hash](0) olun ve Ed25519 iki işlem gerçekleştirdiğinden mesaja karma uygulanmamalıdır 
+
+// imzalanacak mesajları aktarır. 
+
+// 
+
+// [Options] türünde bir değer opts veya crypto.Hash(0) veya olarak kullanılabilir. 
+
+// Sırasıyla düz Ed25519 veya Ed25519ph'yi seçmek için doğrudan crypto.SHA512. 
+
+func (priv PrivateKey) Sign(rand io.Reader, message []bayt, opts crypto.SignerOpts) (imza []bayt, hata hatası) { 
+
+	karma := opts.HashFunc() 
+
+	bağlam := "" 
+
+	eğer tercih edilirse, tamam := tercihler.(*Seçenekler); Tamam { 
+
+		bağlam = opts.bağlam 
+
+	} 
+
+	anahtar { 
+
+	vaka karması == kripto.SHA512: // Ed25519ph 
+
+		if l := len(mesaj); l != sha512.Boyut { 
+
+			return nil, error.New( "ed25519: hatalı Ed25519ph mesaj karma uzunluğu: " + strconv.Itoa(l)) 
+
+		} 
+
+		if l := len(bağlam); ben > 255 { 
+
+			return nil, error.New( "ed25519: hatalı Ed25519ph bağlam uzunluğu: " + strconv.Itoa(l)) 
+
+		} 
+
+		imza := make([]byte, SignatureSize) 
+
+		işaret(imza, özel, mesaj, domPrefixPh, bağlam) 
+
+		imzayı döndür , sıfır 
+
+	case hash == crypto.Hash( 0 ) && context != "" : // Ed25519ctx 
+
+		if l := len(bağlam); ben > 255 { 
+
+			return nil, error.New( "ed25519: hatalı Ed25519ctx bağlam uzunluğu: " + strconv.Itoa(l)) 
+
+		} 
+
+		imza := make([]byte, SignatureSize) 
+
+		işaret(imza, özel, mesaj, domPrefixCtx, bağlam) 
+
+		imzayı döndür , sıfır 
+
+	case hash == crypto.Hash( 0 ): // Ed25519 
+
+		dönüş İşareti(özel, mesaj), sıfır 
+
+	varsayılan : 
+
+		return nil, error.New( "ed25519: beklenen opts.HashFunc() sıfır (karmalanmamış mesaj, standart Ed25519 için) veya SHA-512 (Ed25519ph için)" ) 
+
+	} 
+
+} 
+
+// Seçenekler [PrivateKey.Sign] veya [VerifyWithOptions] ile kullanılabilir 
+
+// Ed25519 çeşitlerini seçmek için. 
+
+type Seçenekler yapı { 
+
+	// Hash, normal Ed25519 için sıfır olabilir veya Ed25519ph için crypto.SHA512 olabilir. 
+
+	Hash kripto.Hash 
+
+	// Bağlam boş değilse Ed25519ctx'i seçer veya bağlam dizesini sağlar 
+
+	// Ed25519ph için. Uzunluğu en fazla 255 byte olabilir. 
+
+	Bağlam dizesi 
+
+} 
+
+// HashFunc o.Hash'ı döndürür. 
+
+func (o *Seçenekler) HashFunc() crypto.Hash { return o.Hash } 
+
+// GenerateKey, Rand'den gelen entropiyi kullanarak genel/özel bir anahtar çifti oluşturur. 
+
+// Rand sıfır ise, [crypto/rand.Reader] kullanılacaktır. 
+
+// 
+
+// Bu fonksiyonun çıktısı deterministiktir ve okumaya eşdeğerdir 
+
+// Rand'dan [SeedSize] baytlar ve bunları [NewKeyFromSeed]'e aktarıyoruz. 
+
+func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) { 
+
+	if rand == nil { 
+
+		rand = cryptorand.Reader 
+
+	} 
+
+	seed := make([]byte, SeedSize) 
+
+	if _, err := io.ReadFull(rand, seed); err != nil { 
+
+		return nil, nil, err 
+
+	} 
+
+	privateKey := NewKeyFromSeed(seed) 
+
+	publicKey := make([]byte, PublicKeySize) 
+
+	copy(publicKey, privateKey[32:]) 
+
+	return publicKey, privateKey, nil 
+
+} 
+
+// NewKeyFromSeed calculates a private key from a seed. It will panic if 
+
+// len(seed) is not [SeedSize]. This function is provided for interoperability 
+
+// with RFC 8032. RFC 8032's private keys correspond to seeds in this 
+
+// package. 
+
+func NewKeyFromSeed(seed []byte) PrivateKey { 
+
+	// Outline the function body so that the returned key can be stack-allocated. 
+
+	privateKey := make([]byte, PrivateKeySize) 
+
+	newKeyFromSeed(privateKey, seed) 
+
+	return privateKey 
+
+} 
+
+func newKeyFromSeed(privateKey, seed []byte) { 
+
+	if l := len(seed); l != SeedSize { 
+
+		panic("ed25519: bad seed length: " + strconv.Itoa(l)) 
+
+	} 
+
+	h := sha512.Sum512(seed) 
+
+	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32]) 
+
+	if err != nil { 
+
+		panic("ed25519: internal error: setting scalar failed") 
+
+	} 
+
+	A := (&edwards25519.Point{}).ScalarBaseMult(s) 
+
+	publicKey := A.Bytes() 
+
+	copy(privateKey, seed) 
+
+	copy(privateKey[32:], publicKey) 
+
+} 
+
+// Sign signs the message with privateKey and returns a signature. It will 
+
+// panic if len(privateKey) is not [PrivateKeySize]. 
+
+func Sign(privateKey PrivateKey, message []byte) []byte { 
+
+	// Outline the function body so that the returned signature can be 
+
+	// stack-allocated. 
+
+	signature := make([]byte, SignatureSize) 
+
+	sign(signature, privateKey, message, domPrefixPure, "") 
+
+	return signature 
+
+} 
+
+// Domain separation prefixes used to disambiguate Ed25519/Ed25519ph/Ed25519ctx. 
+
+// See RFC 8032, Section 2 and Section 5.1. 
+
+const ( 
+
+	// domPrefixPure is empty for pure Ed25519. 
+
+	domPrefixPure = "" 
+
+	// domPrefixPh is dom2(phflag=1) for Ed25519ph. It must be followed by the 
+
+	// uint8-length prefixed context. 
+
+	domPrefixPh = "SigEd25519 no Ed25519 collisions\x01" 
+
+	// domPrefixCtx is dom2(phflag=0) for Ed25519ctx. It must be followed by the 
+
+	// uint8-length prefixed context. 
+
+	domPrefixCtx = "SigEd25519 no Ed25519 collisions\x00" 
+
+) 
+
+func sign(signature, privateKey, message []byte, domPrefix, context string) { 
+
+	if l := len(privateKey); l != PrivateKeySize { 
+
+		panic("ed25519: bad private key length: " + strconv.Itoa(l)) 
+
+	} 
+
+	seed, publicKey := privateKey[:SeedSize], privateKey[SeedSize:] 
+
+	h := sha512.Sum512(seed) 
+
+	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32]) 
+
+	if err != nil { 
+
+		panic("ed25519: internal error: setting scalar failed") 
+
+	} 
+
+	prefix := h[32:] 
+
+	mh := sha512.New() 
+
+	if domPrefix != domPrefixPure { 
+
+		mh.Write([]byte(domPrefix)) 
+
+		mh.Write([]byte{byte(len(context))}) 
+
+		mh.Write([]byte(context)) 
+
+	} 
+
+	mh.Write(prefix) 
+
+	mh.Write(message) 
+
+	messageDigest := make([]byte, 0, sha512.Size) 
+
+	messageDigest = mh.Sum(messageDigest) 
+
+	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest) 
+
+	if err != nil { 
+
+		panic("ed25519: internal error: setting scalar failed") 
+
+	} 
+
+	R := (&edwards25519.Point{}).ScalarBaseMult(r) 
+
+	kh := sha512.New() 
+
+	if domPrefix != domPrefixPure { 
+
+		kh.Write([]byte(domPrefix)) 
+
+		kh.Write([]byte{byte(len(context))}) 
+
+		kh.Write([]byte(context)) 
+
+	} 
+
+	kh.Write(R.Bytes()) 
+
+	kh.Write(publicKey) 
+
+	kh.Write(message) 
+
+	hramDigest := make([]byte, 0, sha512.Size) 
+
+	hramDigest = kh.Sum(hramDigest) 
+
+	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest) 
+
+	if err != nil { 
+
+		panic("ed25519: internal error: setting scalar failed") 
+
+	} 
+
+	S := edwards25519.NewScalar().MultiplyAdd(k, s, r) 
+
+	copy(signature[:32], R.Bytes()) 
+
+	copy(signature[32:], S.Bytes()) 
+
+} 
+
+// Verify reports whether sig is a valid signature of message by publicKey. It 
+
+// will panic if len(publicKey) is not [PublicKeySize]. 
+
+func Verify(publicKey PublicKey, message, sig []byte) bool { 
+
+	return verify(publicKey, message, sig, domPrefixPure, "") 
+
+} 
+
+// VerifyWithOptions reports whether sig is a valid signature of message by 
+
+// publicKey. A valid signature is indicated by returning a nil error. It will 
+
+// panic if len(publicKey) is not [PublicKeySize]. 
+
+// 
+
+// If opts.Hash is [crypto.SHA512], the pre-hashed variant Ed25519ph is used and 
+
+// message is expected to be a SHA-512 hash, otherwise opts.Hash must be 
+
+// [crypto.Hash](0) and the message must not be hashed, as Ed25519 performs two 
+
+// passes over messages to be signed. 
+
+func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) error { 
+
+	switch { 
+
+	case opts.Hash == crypto.SHA512: // Ed25519ph 
+
+		if l := len(message); l != sha512.Size { 
+
+			return errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l)) 
+
+		} 
+
+		if l := len(opts.Context); l > 255 { 
+
+			return errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l)) 
+
+		} 
+
+		if !verify(publicKey, message, sig, domPrefixPh, opts.Context) { 
+
+			hataları döndür.Yeni ( "ed25519: geçersiz imza" ) 
+
+		} 
+
+		sıfıra dönüş
+
+	case opts.Hash == crypto.Hash( 0 ) && opts.Context != "" : // Ed25519ctx 
+
+		if l := len(opts.Context); ben > 255 { 
+
+			dönüş hataları.Yeni( "ed25519: hatalı Ed25519ctx bağlam uzunluğu: " + strconv.Itoa(l)) 
+
+		} 
+
+		if !verify(publicKey, mesaj, sig, domPrefixCtx, opts.Context) { 
+
+			hataları döndür.Yeni ( "ed25519: geçersiz imza" ) 
+
+		} 
+
+		sıfıra dönüş
+
+	case opts.Hash == crypto.Hash( 0 ): // Ed25519 
+
+		if !verify(publicKey, mesaj, sig, domPrefixPure, "" ) { 
+
+			hataları döndür.Yeni ( "ed25519: geçersiz imza" ) 
+
+		} 
+
+		sıfıra dönüş
+
+	varsayılan : 
+
+		dönüş hataları.New( "ed25519: beklenen opts. Karma sıfır (karmalanmamış mesaj, standart Ed25519 için) veya SHA-512 (Ed25519ph için)" ) 
+
+	} 
+
+} 
+
+func doğrulama(publicKey PublicKey, mesaj, sig []bayt, domPrefix, bağlam dizesi) bool { 
+
+	if l := len(publicKey); l != PublicKeySize { 
+
+		panik( "ed25519: bozuk genel anahtar uzunluğu: " + strconv.Itoa(l)) 
+
+	} 
+
+	if len(sig) != SignatureSize || sig[ 63 ]& 224 != 0 { 
+
+		yanlış döndür
+
+	} 
+
+	A, hata := (&edwards25519.Point{}).SetBytes(publicKey) 
+
+	eğer hata != sıfır { 
+
+		yanlış döndür
+
+	} 
+
+	kh := sha512.New() 
+
+	if domPrefix != domPrefixPure { 
+
+		kh.Write([]byte(domPrefix)) 
+
+		kh.Write([]byte{byte(len(context))}) 
+
+		kh.Write([]bayt(bağlam)) 
+
+	} 
+
+	kh.Write(sig[: 32 ]) 
+
+	kh.Write(publicKey) 
+
+	kh.Write(mesaj) 
+
+	hramDigest := make([]byte, 0 , sha512.Size) 
+
+	hramDigest = kh.Sum(hramDigest) 
+
+	k, hata := edwards25519.NewScalar().SetUniformBytes(hramDigest) 
+
+	eğer hata != sıfır { 
+
+		panik( "ed25519: dahili hata: skaler ayarı başarısız oldu" ) 
+
+	} 
+
+	S, err := edwards25519.NewScalar().SetCanonicalBytes(sig[ 32 :]) 
+
+	eğer hata != sıfır { 
+
+		yanlış döndür
+
+	} 
+
+	// [S]B = R + [k]A --> [k](-A) + [S]B = R 
+
+	eksiA := (&edwards25519.Nokta{}).Negatif(A) 
+
+	R := (&edwards25519.Point{}).VarTimeDoubleScalarBaseMult(k, minusA, S) 
+
+	return bytes.Equal(sig[: 32 ], R.Bytes()) 
+
+} 
+
+
